@@ -48,14 +48,18 @@ Welcome to OpenSign, an open-source document e-signing solution designed to prov
 
 ### Features
 
-- **Secure Signing**: Utilizes state-of-the-art cryptographic algorithms to ensure the security & integrity of your documents.
-- **User-Friendly Interface**: Designed with usability in mind, making it easy for both technical and non-technical users.
-- **Multi-Platform Support**: Compatible with various browsers and devices.
-- **Invite & collaborate users**: Bring multiple people from your team into the signing process, all within your own infrastructure.
-- **Secure**: Allows for the easy, secure and seamless organization of your documents using 'OpenSigDrive'.
-- **Audit Trails**: Keeps a detailed log of all activities related to the document signing process including IP addresses and access timings.
-- **Completion Certificate**: Generate secure completion certificate as soon as a document is signed by all participants.
-- **API Support**: Provides a robust API for integration into other software and services.
+- **Secure PDF E-Signing:** With the help of Robust encryption algorithms, OpenSign™ ensures maximum security, privacy & compatibility.
+- **Annotate Documents:** OpenSign™ allows you to annotate PDF documents with an advanced signing pad that comes with hand drawn signatures support as well as uploaded images & saved signatures for the simplest signing experience.
+- **User-Friendly Interface:** OpenSign™ was built while keeping Intuitive design in mind for ease of use. Features like "Sign yourself", "One click signatures" and "OpenSign Drive" makes it stand out of the crowd and even makes it better than a lot of so-called industry leaders.
+- **Multi-signer Support:** OpenSign's ability to invite multiple signers for signing along with the ability to invite witnesses & being able to enforce signing in a sequence makes it the only open source solution that is fully loaded and allows it to compete head-to-head with established players.
+- **Email Unique Code(OTP) verification support for guest signers:** With OpenSign™, your documents are fully secure even when being signed by guest users. Guest signers can only sign the document after entering a unique code sent to their email address. 
+- **"Expiring Docs" & "Rejection":** You can set documents to expire after certain number of days after which nobody will be able to sign it. Not just this, OpenSign also allows signers to reject signing a document.
+- **Beautiful email templates:** All document signing invitations, completion notifications & reminders are formatted using great looking email templates.
+- **PDF Template Creation(coming soon):** OpenSign™ allows you to create and store PDF document templates for repeated use thereby saving you a lot of time.
+- **OpenSign™ Drive:** It is a centralised secure vault for your signed documents that makes storing, signing, organizing, sharing & achieving your docs a breeze.
+- **Audit Trails & completion certificate:** Being a security focused solution, OpenSign™ makes it a top priority to save detailed logs for tracking document activities along with time-stamps, IP addresses, email IDs & phone numbers. A completion certificate is generated as soon as document is completed which contains all the document related logs for added safety.
+- **API Support(coming soon):** OpenSign™ API allows seamless integration into existing systems and software. APIs will soon be available as a cloud hosted solution.
+- **Integrations:** Seamless integrations with various Cloud storage systems, CRMs & enterprise platforms is coming soon.
 
 <img src=https://github.com/OpenSignLabs/OpenSign/assets/5486116/b37ff443-7099-4273-9aeb-21c46d7154cf height='200'>
 <img src=https://github.com/OpenSignLabs/OpenSign/assets/5486116/86db91b7-6c2f-4885-a33c-58f4fd35ec89 height='200'>
@@ -124,6 +128,7 @@ We would like to thank all our contributors and users for their support and feed
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/andrew-opensignlabs"><img src="https://avatars.githubusercontent.com/u/148278535?v=4?s=100" width="100px;" alt="Andrew"/><br /><sub><b>Andrew</b></sub></a><br /><a href="#code-andrew-opensignlabs" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/rishabjasrotia"><img src="https://avatars.githubusercontent.com/u/33950743?v=4?s=100" width="100px;" alt="Rishab"/><br /><sub><b>Rishab</b></sub></a><br /><a href="#code-rishabjasrotia" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://session.it"><img src="https://avatars.githubusercontent.com/u/327285?v=4?s=100" width="100px;" alt="Maurizio Pillitu"/><br /><sub><b>Maurizio Pillitu</b></sub></a><br /><a href="#bug-maoo" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://luisparra.dev"><img src="https://avatars.githubusercontent.com/u/16653744?v=4?s=100" width="100px;" alt="Luis Parra"/><br /><sub><b>Luis Parra</b></sub></a><br /><a href="#a11y-lsprr" title="Accessibility">️️️️♿️</a></td>
     </tr>
   </tbody>
 </table>

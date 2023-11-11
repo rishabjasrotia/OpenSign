@@ -37,7 +37,7 @@ function Header({
 }) {
   const isMobile = window.innerWidth < 767;
   const navigate = useNavigate();
-
+  const isGuestSigner = localStorage.getItem("isGuestSigner");
   //for go to previous page
   function previousPage() {
     changePage(-1);
@@ -60,8 +60,16 @@ function Header({
     event.preventDefault();
 
     const pdf = await getBase64FromUrl(pdfUrl);
-
-    printModule({ printable: pdf, type: "pdf", base64: true });
+    const isAndroidDevice = navigator.userAgent.match(/Android/i);
+    const isAppleDevice = (/iPad|iPhone|iPod/.test(navigator.platform) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) && !window.MSStream
+    if (isAndroidDevice || isAppleDevice) {
+      const byteArray = Uint8Array.from(atob(pdf).split('').map(char => char.charCodeAt(0)));
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } else {
+      printModule({ printable: pdf, type: "pdf", base64: true });
+    }
   };
 
   //handle download signed pdf
@@ -73,14 +81,16 @@ function Header({
 
   return (
     <div
-      style={{ paddingBottom: "5px", paddingTop: "5px" }}
+    style={{ padding: !isGuestSigner && "5px 0px 5px 0px" }}
       className="mobileHead"
     >
       {isMobile && isShowHeader ? (
         <div
           id="navbar"
-          className="stickyHead"
-          style={{ width: window.innerWidth - 30 + "px" }}
+          className={isGuestSigner ? "stickySignerHead" : "stickyHead"}
+          style={{
+            width: isGuestSigner ? window.innerWidth : window.innerWidth - 30 + "px"
+          }}
         >
           <div className="preBtn2">
             <div
