@@ -11,7 +11,13 @@ import { HTML5Backend } from "react-dnd-html5-backend";
 import { useParams } from "react-router-dom";
 import SignPad from "./component/signPad";
 import RenderAllPdfPage from "./component/renderAllPdfPage";
-import { getBase64FromIMG, getBase64FromUrl } from "../utils/Utils";
+import {
+  convertPNGtoJPEG,
+  contractDocument,
+  getBase64FromIMG,
+  getBase64FromUrl,
+  urlValidator
+} from "../utils/Utils";
 import Loader from "./component/loader";
 import HandleError from "./component/HandleError";
 import Nodata from "./component/Nodata";
@@ -106,153 +112,135 @@ function PdfRequestFiles() {
 
   //function for get document details for perticular signer with signer'object id
   const getDocumentDetails = async () => {
-    await axios
-      .get(
-        `${localStorage.getItem("baseUrl")}classes/${localStorage.getItem(
-          "_appName"
-        )}_Document?where={"objectId":"${documentId}"}&include=ExtUserPtr,Signers,UserPtr`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "X-Parse-Application-Id": localStorage.getItem("parseAppId"),
-            "X-Parse-Session-Token": localStorage.getItem("accesstoken")
-          }
-        }
-      )
-      .then((Listdata) => {
-        const json = Listdata.data;
-        const res = json.results;
+    //getting document details
+    const documentData = await contractDocument(documentId);
+    if (documentData && documentData.length > 0) {
+      const isCompleted =
+        documentData[0].IsCompleted && documentData[0].IsCompleted;
+      const expireDate = documentData[0].ExpiryDate.iso;
+      const declined = documentData[0].IsDeclined && documentData[0].IsDeclined;
+      const expireUpdateDate = new Date(expireDate).getTime();
+      const currDate = new Date().getTime();
+      const getSigners = documentData[0].Signers;
+      const getCurrentSigner =
+        getSigners &&
+        getSigners.filter(
+          (data) => data.UserId.objectId === jsonSender.objectId
+        );
 
-        if (res[0] && res.length > 0) {
-          const isCompleted = res[0].IsCompleted && res[0].IsCompleted;
-          const expireDate = res[0].ExpiryDate.iso;
-          const declined = res[0].IsDeclined && res[0].IsDeclined;
-          const expireUpdateDate = new Date(expireDate).getTime();
-          const currDate = new Date().getTime();
-          const getSigners = res[0].Signers;
-          const getCurrentSigner =
-            getSigners &&
-            getSigners.filter(
-              (data) => data.UserId.objectId === jsonSender.objectId
-            );
-
-          const currUserId = getCurrentSigner[0]
-            ? getCurrentSigner[0].objectId
-            : "";
-          setSignerObjectId(currUserId);
-          if (res[0].SignedUrl) {
-            setPdfUrl(res[0].SignedUrl);
-          } else {
-            setPdfUrl(res[0].URL);
-          }
-          if (isCompleted) {
-            setIsSigned(true);
-            const data = {
-              isCertificate: true,
-              isModal: true
-            };
-            setAlreadySign(true);
-            setIsCompleted(data);
-          } else if (declined) {
-            const currentDecline = {
-              currnt: "another",
-              isDeclined: true
-            };
-            setIsDecline(currentDecline);
-          } else if (currDate > expireUpdateDate) {
-            setIsExpired(true);
-          }
-
-          if (res.length > 0) {
-            const checkDocIdExist =
-              json.results[0].AuditTrail &&
-              json.results[0].AuditTrail.length > 0 &&
-              json.results[0].AuditTrail.filter(
-                (data) => data.Activity === "Signed"
-              );
-
-            const checkAlreadySign =
-              json.results[0].AuditTrail &&
-              json.results[0].AuditTrail.length > 0 &&
-              json.results[0].AuditTrail.filter(
-                (data) =>
-                  data.UserPtr.objectId === currUserId &&
-                  data.Activity === "Signed"
-              );
-            if (
-              checkAlreadySign &&
-              checkAlreadySign[0] &&
-              checkAlreadySign.length > 0
-            ) {
-              setAlreadySign(true);
-            }
-
-            let signers = [];
-            let unSignedSigner = [];
-
-            //check document is signed or not
-            if (checkDocIdExist && checkDocIdExist.length > 0) {
-              setAlreadySign(true);
-              setIsDocId(true);
-              const signerRes = res[0].Signers;
-              //comparison auditTrail user details with signers user details
-              for (let i = 0; i < signerRes.length; i++) {
-                const signerId = signerRes[i].objectId;
-
-                let isSigned = false;
-                for (let j = 0; j < checkDocIdExist.length; j++) {
-                  const signedExist =
-                    checkDocIdExist[j] && checkDocIdExist[j].UserPtr.objectId;
-                  //checking signerObjId and auditTrail User objId
-                  // if match then add signed data in signer array and break loop
-
-                  if (signerId === signedExist) {
-                    signers.push({ ...signerRes[i], ...signerRes[i] });
-                    isSigned = true;
-                    break;
-                  }
-                  // if does not match then add unsigned data in unSignedSigner array
-                }
-                if (!isSigned) {
-                  unSignedSigner.push({ ...signerRes[i], ...signerRes[i] });
-                }
-              }
-              setSignedSigners(signers);
-              setUnSignedSigners(unSignedSigner);
-
-              setSignerPos(res[0].Placeholders);
-            } else {
-              let unsigned = [];
-              for (let i = 0; i < res.length; i++) {
-                unsigned.push(res[i].Signers);
-              }
-              setUnSignedSigners(unsigned[0]);
-              setSignerPos(res[0].Placeholders);
-            }
-
-            setPdfDetails(res);
-
-            setIsUiLoading(false);
-          } else {
-            alert("No data found!");
-          }
-        } else {
-          setNoData(true);
-          const loadObj = {
-            isLoad: false
-          };
-          setIsLoading(loadObj);
-          setIsUiLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.log("err", err);
-        const loadObj = {
-          isLoad: false
+      const currUserId = getCurrentSigner[0]
+        ? getCurrentSigner[0].objectId
+        : "";
+      setSignerObjectId(currUserId);
+      if (documentData[0].SignedUrl) {
+        setPdfUrl(documentData[0].SignedUrl);
+      } else {
+        setPdfUrl(documentData[0].URL);
+      }
+      if (isCompleted) {
+        setIsSigned(true);
+        const data = {
+          isCertificate: true,
+          isModal: true
         };
-        setHandleError("Error: Something went wrong!");
-        setIsLoading(loadObj);
-      });
+        setAlreadySign(true);
+        setIsCompleted(data);
+      } else if (declined) {
+        const currentDecline = {
+          currnt: "another",
+          isDeclined: true
+        };
+        setIsDecline(currentDecline);
+      } else if (currDate > expireUpdateDate) {
+        setIsExpired(true);
+      }
+
+      if (documentData.length > 0) {
+        const checkDocIdExist =
+          documentData[0].AuditTrail &&
+          documentData[0].AuditTrail.length > 0 &&
+          documentData[0].AuditTrail.filter(
+            (data) => data.Activity === "Signed"
+          );
+
+        const checkAlreadySign =
+          documentData[0].AuditTrail &&
+          documentData[0].AuditTrail.length > 0 &&
+          documentData[0].AuditTrail.filter(
+            (data) =>
+              data.UserPtr.objectId === currUserId && data.Activity === "Signed"
+          );
+        if (
+          checkAlreadySign &&
+          checkAlreadySign[0] &&
+          checkAlreadySign.length > 0
+        ) {
+          setAlreadySign(true);
+        }
+
+        let signers = [];
+        let unSignedSigner = [];
+
+        //check document is signed or not
+        if (checkDocIdExist && checkDocIdExist.length > 0) {
+          setIsDocId(true);
+          const signerRes = documentData[0].Signers;
+          //comparison auditTrail user details with signers user details
+          for (let i = 0; i < signerRes.length; i++) {
+            const signerId = signerRes[i].objectId;
+
+            let isSigned = false;
+            for (let j = 0; j < checkDocIdExist.length; j++) {
+              const signedExist =
+                checkDocIdExist[j] && checkDocIdExist[j].UserPtr.objectId;
+              //checking signerObjId and auditTrail User objId
+              // if match then add signed data in signer array and break loop
+
+              if (signerId === signedExist) {
+                signers.push({ ...signerRes[i], ...signerRes[i] });
+                isSigned = true;
+                break;
+              }
+              // if does not match then add unsigned data in unSignedSigner array
+            }
+            if (!isSigned) {
+              unSignedSigner.push({ ...signerRes[i], ...signerRes[i] });
+            }
+          }
+          setSignedSigners(signers);
+          setUnSignedSigners(unSignedSigner);
+
+          setSignerPos(documentData[0].Placeholders);
+        } else {
+          let unsigned = [];
+          for (let i = 0; i < documentData.length; i++) {
+            unsigned.push(documentData[i].Signers);
+          }
+          setUnSignedSigners(unsigned[0]);
+          setSignerPos(documentData[0].Placeholders);
+        }
+        setPdfDetails(documentData);
+        setIsUiLoading(false);
+      } else {
+        alert("No data found!");
+      }
+    } else if (
+      documentData === "Error: Something went wrong!" ||
+      (documentData.result && documentData.result.error)
+    ) {
+      const loadObj = {
+        isLoad: false
+      };
+      setHandleError("Error: Something went wrong!");
+      setIsLoading(loadObj);
+    } else {
+      setNoData(true);
+      const loadObj = {
+        isLoad: false
+      };
+      setIsLoading(loadObj);
+      setIsUiLoading(false);
+    }
     await axios
       .get(
         `${localStorage.getItem("baseUrl")}classes/${localStorage.getItem(
@@ -294,7 +282,6 @@ function PdfRequestFiles() {
     const checkUser = signerPos.filter(
       (data) => data.signerObjId === signerObjectId
     );
-
     if (checkUser && checkUser.length > 0) {
       let checkSignUrl = [];
       const checkSign = checkUser[0].placeHolder.filter(
@@ -361,38 +348,13 @@ function PdfRequestFiles() {
             imgUrlList.map(async (data) => {
               //cheking signUrl is defau;t signature url of custom url
               let ImgUrl = data.SignUrl;
-              const checkUrl = ImgUrl.includes("https:");
+              const checkUrl = urlValidator(ImgUrl);
 
               //if default signature url then convert it in base 64
               if (checkUrl) {
                 ImgUrl = await getBase64FromIMG(ImgUrl + "?get");
               }
               //function for called convert png signatre to jpeg in base 64
-              const convertPNGtoJPEG = (base64Data) => {
-                return new Promise((resolve, reject) => {
-                  const canvas = document.createElement("canvas");
-                  const img = new Image();
-                  img.src = base64Data;
-
-                  img.onload = () => {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-
-                    const ctx = canvas.getContext("2d");
-                    ctx.drawImage(img, 0, 0);
-
-                    // Convert to JPEG by using the canvas.toDataURL() method
-                    const jpegBase64Data = canvas.toDataURL("image/jpeg");
-
-                    resolve(jpegBase64Data);
-                  };
-
-                  img.onerror = (error) => {
-                    reject(error);
-                  };
-                });
-              };
-
               convertPNGtoJPEG(ImgUrl)
                 .then((jpegBase64Data) => {
                   const removeBase64Fromjpeg = "data:image/jpeg;base64,";
@@ -448,32 +410,21 @@ function PdfRequestFiles() {
             const images = await Promise.all(
               imgUrlList.map(async (url) => {
                 let signUrl = url.SignUrl;
-
-                const checkUrl = url.SignUrl.includes("https:");
+                if (url.ImageType === "image/png") {
+                  //function for convert signature png base64 url to jpeg base64
+                  const newUrl = await convertPNGtoJPEG(signUrl);
+                  signUrl = newUrl;
+                }   
+                const checkUrl = urlValidator(signUrl);
                 if (checkUrl) {
                   signUrl = signUrl + "?get";
                 }
                 const res = await fetch(signUrl);
-
                 return res.arrayBuffer();
               })
             );
             images.forEach(async (imgData, id) => {
-              let img;
-              if (
-                imgUrlList[id].ImageType &&
-                imgUrlList[id].ImageType === "image/jpeg"
-              ) {
-                img = await pdfDoc.embedJpg(imgData);
-              } else if (
-                imgUrlList[id].ImageType &&
-                imgUrlList[id].ImageType === "image/png"
-              ) {
-                img = await pdfDoc.embedPng(imgData);
-              } else {
-                img = await pdfDoc.embedPng(imgData);
-              }
-
+              let img = await pdfDoc.embedJpg(imgData);
               const imgHeight = imgUrlList[id].Height
                 ? imgUrlList[id].Height
                 : 60;
@@ -597,12 +548,12 @@ function PdfRequestFiles() {
         if (isMobile) {
           //if pos.isMobile false -- placeholder saved from desktop view then handle position in mobile view divided by scale
           if (pos.isMobile) {
-            const y = pos.yPosition * (pos.scale / scale);
+            const y = pos.yBottom * (pos.scale / scale);
             yPosition = pos.isDrag
               ? y * scale - height
               : pos.firstYPos
-              ? y * scale - height + pos.firstYPos
-              : y * scale - height;
+                ? y * scale - height + pos.firstYPos
+                : y * scale - height;
             return yPosition;
           } else {
             const y = pos.yBottom / scale;
@@ -610,8 +561,8 @@ function PdfRequestFiles() {
             yPosition = pos.isDrag
               ? y * scale - height
               : pos.firstYPos
-              ? y * scale - height + pos.firstYPos
-              : y * scale - height;
+                ? y * scale - height + pos.firstYPos
+                : y * scale - height;
             return yPosition;
           }
         } else {
@@ -622,15 +573,15 @@ function PdfRequestFiles() {
             yPosition = pos.isDrag
               ? y - height
               : pos.firstYPos
-              ? y - height + pos.firstYPos
-              : y - height;
+                ? y - height + pos.firstYPos
+                : y - height;
             return yPosition;
           } else {
             yPosition = pos.isDrag
               ? pos.yBottom - height
               : pos.firstYPos
-              ? pos.yBottom - height + pos.firstYPos
-              : pos.yBottom - height;
+                ? pos.yBottom - height + pos.firstYPos
+                : pos.yBottom - height;
             return yPosition;
           }
         }
@@ -1048,7 +999,7 @@ function PdfRequestFiles() {
 
                 <Modal.Body>
                   <p className="pTagBody">
-                    This document has been signed by all Sigers.
+                    This document has been signed by all Signers.
                   </p>
                 </Modal.Body>
 

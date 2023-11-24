@@ -17,10 +17,11 @@ import S3Adapter from 'parse-server-s3-adapter';
 import FSFilesAdapter from 'parse-server-fs-adapter';
 import AWS from 'aws-sdk';
 import { app as customRoute } from './cloud/customRoute/customApp.js';
+import { exec } from 'child_process';
 
 const spacesEndpoint = new AWS.Endpoint(process.env.DO_ENDPOINT);
 // console.log("configuration ", configuration);
-if (process.env.USE_LOCAL !== "TRUE") {
+if (process.env.USE_LOCAL !== 'TRUE') {
   const s3Options = {
     bucket: process.env.DO_SPACE, // globalConfig.S3FilesAdapter.bucket,
     baseUrl: process.env.DO_BASEURL,
@@ -36,18 +37,31 @@ if (process.env.USE_LOCAL !== "TRUE") {
   var fsAdapter = new S3Adapter(s3Options);
 } else {
   var fsAdapter = new FSFilesAdapter({
-    "filesSubDirectory": "files" // optional, defaults to ./files
+    filesSubDirectory: 'files', // optional, defaults to ./files
   });
 }
 
+let transporterMail;
 let mailgunClient;
 let mailgunDomain;
-if (process.env.MAILGUN_API_KEY) {
+
+if (process.env.SMTP_ENABLE) {
+  transporterMail = createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT || 465,
+    secure: process.env.SMTP_SECURE || true,
+    auth: {
+      user: process.env.SMTP_USER_EMAIL,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+} else if (process.env.MAILGUN_API_KEY) {
   const mailgun = new Mailgun(formData);
   mailgunClient = mailgun.client({
     username: 'api',
     key: process.env.MAILGUN_API_KEY,
   });
+
   mailgunDomain = process.env.MAILGUN_DOMAIN;
 }
 
@@ -59,41 +73,46 @@ export const config = {
   masterKey: process.env.MASTER_KEY || '', //Add your master key here. Keep it secret!
   masterKeyIps: ['0.0.0.0/0', '::1'], // '::1'
   serverURL: process.env.SERVER_URL || 'http://localhost:8080/app', // Don't forget to change to https if needed
-  // verifyUserEmails: true,
+  verifyUserEmails: true,
   publicServerURL: process.env.SERVER_URL || 'http://localhost:8080/app',
   // Your apps name. This will appear in the subject and body of the emails that are sent.
   appName: 'Open Sign',
   allowClientClassCreation: false,
-  emailAdapter: process.env.MAILGUN_API_KEY
-    ? {
-        module: 'parse-server-api-mail-adapter',
-        options: {
-          // The email address from which emails are sent.
-          sender: process.env.MAILGUN_SENDER,
-          // The email templates.
-          templates: {
-            // The template used by Parse Server to send an email for password
-            // reset; this is a reserved template name.
-            passwordResetEmail: {
-              subjectPath: './files/password_reset_email_subject.txt',
-              textPath: './files/password_reset_email.txt',
-              htmlPath: './files/password_reset_email.html',
+  emailAdapter:
+    process.env.SMTP_ENABLE || process.env.MAILGUN_API_KEY
+      ? {
+          module: 'parse-server-api-mail-adapter',
+          options: {
+            // The email address from which emails are sent.
+            sender: process.env.SMTP_ENABLE
+              ? process.env.SMTP_USER_EMAIL
+              : process.env.MAILGUN_SENDER,
+            // The email templates.
+            templates: {
+              // The template used by Parse Server to send an email for password
+              // reset; this is a reserved template name.
+              passwordResetEmail: {
+                subjectPath: './files/password_reset_email_subject.txt',
+                textPath: './files/password_reset_email.txt',
+                htmlPath: './files/password_reset_email.html',
+              },
+              // The template used by Parse Server to send an email for email
+              // address verification; this is a reserved template name.
+              verificationEmail: {
+                subjectPath: './files/verification_email_subject.txt',
+                textPath: './files/verification_email.txt',
+                htmlPath: './files/verification_email.html',
+              },
             },
-            // The template used by Parse Server to send an email for email
-            // address verification; this is a reserved template name.
-            verificationEmail: {
-              subjectPath: './files/verification_email_subject.txt',
-              textPath: './files/verification_email.txt',
-              htmlPath: './files/verification_email.html',
+            apiCallback: async ({ payload, locale }) => {
+              if (mailgunClient) {
+                const mailgunPayload = ApiPayloadConverter.mailgun(payload);
+                await mailgunClient.messages.create(mailgunDomain, mailgunPayload);
+              } else if (transporterMail) await transporterMail.sendMail(payload);
             },
           },
-          apiCallback: async ({ payload, locale }) => {
-            const mailgunPayload = ApiPayloadConverter.mailgun(payload);
-            await mailgunClient.messages.create(mailgunDomain, mailgunPayload);
-          },
-        },
-      }
-    : null,
+        }
+      : null,
   filesAdapter: fsAdapter,
   auth: {
     google: {
@@ -164,6 +183,20 @@ if (!process.env.TESTING) {
   httpServer.headersTimeout = 100000; // in milliseconds
   httpServer.listen(port, function () {
     console.log('parse-server-example running on port ' + port + '.');
+    const migrate = `APPLICATION_ID=${process.env.APP_ID} SERVER_URL=http://localhost:8080/app MASTER_KEY=${process.env.MASTER_KEY} npx parse-dbtool migrate`;
+
+    exec(migrate, (error, stdout, stderr) => {
+      if (error) {
+        console.error(`Error: ${error.message}`);
+        return;
+      }
+
+      if (stderr) {
+        console.error(`Error: ${stderr}`);
+        return;
+      }
+      console.log(`Command output: ${stdout}`);
+    });
   });
   // This will enable the Live Query real-time server
   await ParseServer.createLiveQueryServer(httpServer);

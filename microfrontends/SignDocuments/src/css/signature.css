@@ -374,15 +374,13 @@
   font-size: 50px;
 }
 
-
-
 .DropdownMenuContent,
 .DropdownMenuSubContent {
   min-width: 130px;
-  background-color: #887abf;
-  border: none;
+  background-color: #fff;
+  border: 1px solid rgba(0, 0, 0, .15);
+  border-radius: 0.25rem;
   padding: 5px;
-
   animation-duration: 400ms;
   animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, opacity;
@@ -413,13 +411,13 @@
   font-size: 13px;
   line-height: 1;
   color: black;
-  background-color: #887abf;
+  background-color: #fff;
   display: flex;
   align-items: center;
   height: 25px;
   padding: 0 5px;
   position: relative;
-  padding-left: 25px;
+  padding-left: 20px;
   user-select: none;
   outline: none;
   border: none;
@@ -565,12 +563,12 @@ option {
   color: var(--violet-11);
   cursor: default;
 }
-.fontOptionContainer{
- border: 1px solid #d6d3d3;
- margin: 10px 5px 5px 5px;
+
+.fontOptionContainer {
+  border: 1px solid #d6d3d3;
+  margin: 10px 5px 5px 5px;
 
 }
-
 
 @media screen and (max-width:766px) {
 
@@ -628,25 +626,26 @@ option {
     padding: 16px;
   }
 
-  /* The sticky class is added to the navbar 
+  /* The sticky class is added to the navbar
   with JS when it reaches its scroll position */
   .stickyHead {
-    position: fixed;
     top: 50px;
     left: 0.9rem;
-}
-  .stickySignerHead{
-   position: fixed;
-   }
-   .stickyfooter {
+  }
+
+  .stickySignerHead {
+    position: fixed;
+  }
+
+  .stickyfooter {
     position: fixed;
     bottom: 0px;
     right: 0rem;
   }
 
-  /* Add some top padding to the page content 
-  to prevent sudden quick movement (as the 
-  navigation bar gets a new position at the top of the 
+  /* Add some top padding to the page content
+  to prevent sudden quick movement (as the
+  navigation bar gets a new position at the top of the
   page (position:fixed and top:0) */
   .stickyHead+.content {
     padding-top: 60px;
@@ -776,4 +775,14 @@ option {
   .mobileHead {
     display: flex;
   }
+}
+
+.signature-backdrop {
+  position: fixed;
+  top: 0; bottom: 0; left: 0; right: 0;
+  background-color: #000;
+}
+
+.signature-backdrop.fade.in {
+  opacity: 0.5;
 }

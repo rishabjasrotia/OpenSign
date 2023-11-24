@@ -15,7 +15,11 @@ import EmailComponent from "./component/emailComponent";
 import FieldsComponent from "./component/fieldsComponent";
 import Modal from "react-bootstrap/Modal";
 import ModalHeader from "react-bootstrap/esm/ModalHeader";
-import { getBase64FromIMG } from "../utils/Utils";
+import {
+  convertPNGtoJPEG,
+  contractDocument,
+  getBase64FromIMG
+} from "../utils/Utils";
 import { useParams } from "react-router-dom";
 import Tour from "reactour";
 import { onSaveImage, onSaveSign } from "../utils/Utils";
@@ -24,7 +28,9 @@ import HandleError from "./component/HandleError";
 import Nodata from "./component/Nodata";
 import Header from "./component/header";
 import RenderPdf from "./component/renderPdf";
-import { contractUsers, contactBook } from "../utils/Utils";
+import { contractUsers, contactBook, urlValidator } from "../utils/Utils";
+import { modalAlign } from "../utils/Utils";
+import { $ } from "select-dom";
 //For signYourself inProgress section signer can add sign and complete doc sign.
 function SignYourSelf() {
   const [pdfDetails, setPdfDetails] = useState([]);
@@ -167,61 +173,48 @@ function SignYourSelf() {
     //pdf from left and right component
     setPdfNewWidth(pdfWidth);
     if (documentId) {
-      getDocumentDetails();
+      getDocumentDetails(true);
     }
   }, []);
 
   //function for get document details for perticular signer with signer'object id
-  const getDocumentDetails = async () => {
-    await axios
-      .get(
-        `${localStorage.getItem("baseUrl")}classes/${localStorage.getItem(
-          "_appName"
-        )}_Document?where={"objectId":"${documentId}"}&include=ExtUserPtr,Signers`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "X-Parse-Application-Id": localStorage.getItem("parseAppId"),
-            "X-Parse-Session-Token": localStorage.getItem("accesstoken")
-          }
-        }
-      )
-      .then((Listdata) => {
-        const json = Listdata.data;
-        const res = json.results;
+  const getDocumentDetails = async (showComplete) => {
+    //getting document details
+    const documentData = await contractDocument(documentId);
 
-        if (res[0] && res.length > 0) {
-          setPdfDetails(res);
-          const isCompleted = res[0].IsCompleted && res[0].IsCompleted;
-          if (isCompleted) {
-            const docStatus = {
-              isCompleted: isCompleted
-            };
-
-            setDocumentStatus(docStatus);
-            const alreadySign = {
-              status: true,
-              mssg: "You have successfully signed the document!"
-            };
-            setShowAlreadySignDoc(alreadySign);
-            setPdfUrl(res[0].SignedUrl);
-          }
-        } else {
-          setNoData(true);
-
-          const loadObj = {
-            isLoad: false
-          };
-          setIsLoading(loadObj);
-        }
-      })
-      .catch((err) => {
-        const loadObj = {
-          isLoad: false
+    if (documentData && documentData.length > 0) {
+      setPdfDetails(documentData);
+      const isCompleted =
+        documentData[0].IsCompleted && documentData[0].IsCompleted;
+      if (isCompleted && showComplete) {
+        const docStatus = {
+          isCompleted: isCompleted
         };
-        setHandleError("Error: Something went wrong!");
-        setIsLoading(loadObj);
-      });
+
+        setDocumentStatus(docStatus);
+        const alreadySign = {
+          status: true,
+          mssg: "You have successfully signed the document!"
+        };
+        setShowAlreadySignDoc(alreadySign);
+        setPdfUrl(documentData[0].SignedUrl);
+      }
+    } else if (
+      documentData === "Error: Something went wrong!" ||
+      (documentData.result && documentData.result.error)
+    ) {
+      const loadObj = {
+        isLoad: false
+      };
+      setHandleError("Error: Something went wrong!");
+      setIsLoading(loadObj);
+    } else {
+      setNoData(true);
+      const loadObj = {
+        isLoad: false
+      };
+      setIsLoading(loadObj);
+    }
     await axios
       .get(
         `${localStorage.getItem("baseUrl")}classes/${localStorage.getItem(
@@ -252,13 +245,10 @@ function SignYourSelf() {
         setHandleError("Error: Something went wrong!");
         setIsLoading(loadObj);
       });
-    const contractUsersRes = await contractUsers(jsonSender.objectId);
 
-    if (
-      contractUsersRes !== "Error: Something went wrong!" &&
-      contractUsersRes &&
-      contractUsersRes[0]
-    ) {
+    const contractUsersRes = await contractUsers(jsonSender.email);
+
+    if (contractUsersRes[0] && contractUsersRes.length > 0) {
       setContractName("_Users");
       setSignerUserId(contractUsersRes[0].objectId);
       const tourstatuss =
@@ -285,14 +275,12 @@ function SignYourSelf() {
       setIsLoading(loadObj);
     } else if (contractUsersRes.length === 0) {
       const contractContactBook = await contactBook(jsonSender.objectId);
-      if (contractContactBook && contractContactBook[0]) {
+      if (contractContactBook && contractContactBook.length > 0) {
         setContractName("_Contactbook");
-
         setSignerUserId(contractContactBook[0].objectId);
         const tourstatuss =
           contractContactBook[0].TourStatus &&
           contractContactBook[0].TourStatus;
-
         if (tourstatuss && tourstatuss.length > 0) {
           setTourStatus(tourstatuss);
           const checkTourRecipients = tourstatuss.filter(
@@ -302,6 +290,8 @@ function SignYourSelf() {
             setCheckTourStatus(checkTourRecipients[0].signyourself);
           }
         }
+      } else {
+        setNoData(true);
       }
       const loadObj = {
         isLoad: false
@@ -460,39 +450,13 @@ function SignYourSelf() {
           imgUrlList.map(async (data) => {
             let ImgUrl = data.SignUrl;
             //cheking signUrl is defau;t signature url of custom url
-            const checkUrl = ImgUrl.includes("https:");
+            const checkUrl = urlValidator(ImgUrl);
 
             //if default signature url then convert it in base 64
             if (checkUrl) {
               ImgUrl = await getBase64FromIMG(ImgUrl + "?get");
             }
-
             //function for convert signature png base64 url to jpeg base64
-            const convertPNGtoJPEG = (base64Data) => {
-              return new Promise((resolve, reject) => {
-                const canvas = document.createElement("canvas");
-                const img = new Image();
-                img.src = base64Data;
-
-                img.onload = () => {
-                  canvas.width = img.width;
-                  canvas.height = img.height;
-
-                  const ctx = canvas.getContext("2d");
-                  ctx.drawImage(img, 0, 0);
-
-                  // Convert to JPEG by using the canvas.toDataURL() method
-                  const jpegBase64Data = canvas.toDataURL("image/jpeg");
-
-                  resolve(jpegBase64Data);
-                };
-
-                img.onerror = (error) => {
-                  reject(error);
-                };
-              });
-            };
-
             convertPNGtoJPEG(ImgUrl)
               .then((jpegBase64Data) => {
                 const removeBase64Fromjpeg = "data:image/jpeg;base64,";
@@ -540,7 +504,12 @@ function SignYourSelf() {
             imgUrlList.map(async (url) => {
               let signUrl = url.SignUrl;
 
-              const checkUrl = url.SignUrl.includes("https:");
+              if (url.ImageType === "image/png") {
+                //function for convert signature png base64 url to jpeg base64
+                const newUrl = await convertPNGtoJPEG(signUrl);
+                signUrl = newUrl;
+              }
+              const checkUrl = urlValidator(signUrl);
               if (checkUrl) {
                 signUrl = signUrl + "?get";
               }
@@ -550,21 +519,7 @@ function SignYourSelf() {
             })
           );
           images.forEach(async (imgData, id) => {
-            let img;
-            if (
-              imgUrlList[id].ImageType &&
-              imgUrlList[id].ImageType === "image/jpeg"
-            ) {
-              img = await pdfDoc.embedJpg(imgData);
-            } else if (
-              imgUrlList[id].ImageType &&
-              imgUrlList[id].ImageType === "image/png"
-            ) {
-              img = await pdfDoc.embedPng(imgData);
-            } else {
-              img = await pdfDoc.embedPng(imgData);
-            }
-
+            let img = await pdfDoc.embedJpg(imgData);
             const imgHeight = imgUrlList[id].Height
               ? imgUrlList[id].Height
               : 60;
@@ -627,8 +582,8 @@ function SignYourSelf() {
       const bottomY = xyPosData.isDrag
         ? xyPosData.yBottom * scale - height
         : xyPosData.firstYPos
-        ? xyPosData.yBottom * scale - height + xyPosData.firstYPos
-        : xyPosData.yBottom * scale - height;
+          ? xyPosData.yBottom * scale - height + xyPosData.firstYPos
+          : xyPosData.yBottom * scale - height;
 
       singleSign = {
         pdfFile: pdfBase64Url,
@@ -664,15 +619,7 @@ function SignYourSelf() {
         // console.log("json ", json);
         setPdfUrl(json.result.data);
         if (json.result.data) {
-          const docStatus = {
-            isCompleted: true
-          };
-
-          setDocumentStatus(docStatus);
-          const loadObj = {
-            isLoad: false
-          };
-          setIsLoading(loadObj);
+          getDocumentDetails(false);
         }
       })
       .catch((err) => {
@@ -1044,7 +991,11 @@ function SignYourSelf() {
           >
             {/* this modal is used show this document is already sign */}
 
-            <Modal show={showAlreadySignDoc.status}>
+            <Modal
+              show={showAlreadySignDoc.status}
+              onShow={() => modalAlign()}
+              backdropClassName="signature-backdrop"
+            >
               <ModalHeader style={{ background: themeColor() }}>
                 <span style={{ color: "white" }}> Sign Documents</span>
               </ModalHeader>
