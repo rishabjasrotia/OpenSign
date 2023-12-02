@@ -15,6 +15,7 @@ import ForgetPassword from "./routes/ForgetPassword";
 import ChangePassword from "./routes/ChangePassword";
 import ReportMicroapp from "./components/ReportMicroapp";
 import LoadMf from "./routes/LoadMf";
+import Api from "./routes/Api";
 
 function App() {
   const [isloading, setIsLoading] = useState(true);
@@ -135,6 +136,15 @@ function App() {
               element={
                 <HomeLayout>
                   <UserProfile />
+                </HomeLayout>
+              }
+            />
+
+            <Route
+              path="/api"
+              element={
+                <HomeLayout>
+                  <Api />
                 </HomeLayout>
               }
             />
