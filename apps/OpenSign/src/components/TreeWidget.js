@@ -472,6 +472,8 @@ const TreeWidget = (props) => {
         props.schema.data.FolderTypeField,
         props.schema.data.FolderTypeValue
       );
+      const currentUser = Parse.User.current();
+      folder.set("CreatedBy", Parse.User.createWithoutData(currentUser.id));
       if (tabList.length > 0) {
         let len = tabList.length - 1;
         folder.set(props.schema.data.ParentFolderField, {
@@ -698,7 +700,7 @@ const TreeWidget = (props) => {
                 ))}
               <hr />
             </div>
-            {editable && (
+            {/* {editable && (
               <TreeEditForm
                 FormId={props.schema.data.FormId}
                 objectId={editId}
@@ -707,7 +709,7 @@ const TreeWidget = (props) => {
                   selectFolderHandle();
                 }}
               />
-            )}
+            )} */}
             {isAddField && !loader && !editable && (
               <TreeFormComponent
                 Id={props.schema.data.FormId}
@@ -795,7 +797,7 @@ const TreeWidget = (props) => {
                               </a>
                             </div>
 
-                            {fldr[props.schema.data.FolderTypeField] ===
+                            {/* {fldr[props.schema.data.FolderTypeField] ===
                               props.schema.data.FolderTypeValue && (
                               <a
                                 className="float-right"
@@ -815,7 +817,7 @@ const TreeWidget = (props) => {
                                   aria-hidden="true"
                                 ></i>
                               </a>
-                            )}
+                            )} */}
                           </li>
                         )
                     )}
